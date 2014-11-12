@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
+import Control.Concurrent.MVar
 import qualified Data.Map as Map
 
 data Color = Green
@@ -13,13 +14,13 @@ data Game = Game Board Piece
 -- 10 x 30
 line, ell, jay, square, zed, ess, tee :: Shape
 
-line = [(0,0), (1,0), (2,0), (3,0)]
-ell = [(0,1), (0,0), (1,0), (2,0)]
-jay = [(2,1), (0,0), (1,0), (2,0)]
+line   = [(0,0), (1,0), (2,0), (3,0)]
+ell    = [(0,1), (0,0), (1,0), (2,0)]
+jay    = [(2,1), (0,0), (1,0), (2,0)]
 square = [(1,1), (1,0), (0,1), (0,0)]
-zed = [(0,1), (1,1), (1,0), (2,0)]
-ess = [(0,0), (1,1), (1,0), (2,1)]
-tee = [(0,0), (1,0), (2,0), (1,1)]
+zed    = [(0,1), (1,1), (1,0), (2,0)]
+ess    = [(0,0), (1,1), (1,0), (2,1)]
+tee    = [(0,0), (1,0), (2,0), (1,1)]
 
 aPiece :: Piece
 aPiece = Piece ell (6,10)
@@ -37,6 +38,9 @@ getLineStr board y = '|' : [ if Map.member (x, y) board
 
 getBoardStr :: Board -> String
 getBoardStr board = unlines [ getLineStr board y | y <- [30,29..0]]
+
+getGameStr :: Game -> String
+getGameStr (Game b p) = getBoardStr $ merge b p
 
 translate :: Piece -> [Coord]
 translate (Piece s origin) = map (addCoords origin) s
@@ -73,5 +77,34 @@ rotateRight (Piece cs o) = Piece cs' o
   where cs' = map f cs
         f (x, y) = (y, -x)
 
-main :: IO ()
-main = putStr $ getBoardStr $ merge aBoard ((rotateRight . rotateRight) aPiece)
+command :: String -> Piece -> Piece
+command "s" = down
+command "a" = left
+command "d" = right
+command "q" = rotateLeft
+command "e" = rotateRight
+command _ = id
+
+step :: (Piece -> Piece) -> Game -> Game
+step f (Game b p) = Game b (f p)
+
+runStep :: Game -> IO Game
+runStep g = do
+  putStr $ getGameStr g
+  c <- getLine
+  newGame <- return $ step (command c) g
+  return newGame
+
+run :: MVar Game -> IO b
+run state = do
+  _ <- modifyMVar_ state runStep
+  run state
+
+main :: IO b
+main = do
+  state <- newMVar (Game aBoard aPiece)
+  run state
+  -- a <- runStep (Game aBoard aPiece)
+  -- b <- runStep a
+  -- c <- runStep b
+  -- runStep c
