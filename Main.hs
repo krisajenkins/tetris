@@ -26,18 +26,20 @@ aPiece :: Piece
 aPiece = Piece ell (6,10)
 
 aBoard :: Board
-aBoard = Map.insert (5,3) Green $ Map.insert (5,6) Green $ Map.insert (5,5) Green Map.empty
+aBoard = foldr f Map.empty [(5,3), (5,6), (5,5)]
+  where f c = Map.insert c Green
 
 aGame :: Game
 aGame = Game aBoard aPiece
 
 getLineStr :: Board -> Int -> String
-getLineStr board y = '|' : [ if Map.member (x, y) board
-                              then '*'
-                              else ' ' | x <- [0..9] ] ++ "|"
+getLineStr board y = "|" ++ fmap f [0..9] ++ "|"
+  where f x = case Map.lookup (x, y) board of
+                Just Green -> 'G'
+                Nothing -> ' '
 
 getBoardStr :: Board -> String
-getBoardStr board = unlines [ getLineStr board y | y <- [30,29..0]]
+getBoardStr board = unlines $ fmap (getLineStr board) [30,29..0]
 
 getGameStr :: Game -> String
 getGameStr (Game b p) = getBoardStr $ merge b p
@@ -92,8 +94,7 @@ runStep :: Game -> IO Game
 runStep g = do
   putStr $ getGameStr g
   c <- getLine
-  newGame <- return $ step (command c) g
-  return newGame
+  return (step (command c) g)
 
 run :: MVar Game -> IO b
 run state = do
@@ -104,7 +105,3 @@ main :: IO b
 main = do
   state <- newMVar (Game aBoard aPiece)
   run state
-  -- a <- runStep (Game aBoard aPiece)
-  -- b <- runStep a
-  -- c <- runStep b
-  -- runStep c
