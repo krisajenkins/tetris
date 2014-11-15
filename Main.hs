@@ -4,7 +4,7 @@ module Main where
 import qualified Data.Map as Map
 
 data Color = Green
-type Coord = (Int, Int)
+data Coord = Coord (Int, Int) deriving (Eq, Ord)
 type Board = Map.Map Coord Color
 type Shape = [Coord]
 data Piece = Piece Shape Coord
@@ -13,19 +13,19 @@ data Game = Game Board Piece
 -- 10 x 30
 line, ell, jay, square, zed, ess, tee :: Shape
 
-line   = [(0,0), (1,0), (2,0), (3,0)]
-ell    = [(0,1), (0,0), (1,0), (2,0)]
-jay    = [(2,1), (0,0), (1,0), (2,0)]
-square = [(1,1), (1,0), (0,1), (0,0)]
-zed    = [(0,1), (1,1), (1,0), (2,0)]
-ess    = [(0,0), (1,1), (1,0), (2,1)]
-tee    = [(0,0), (1,0), (2,0), (1,1)]
+line   = [Coord (0,0), Coord (1,0), Coord (2,0), Coord (3,0)]
+ell    = [Coord (0,1), Coord (0,0), Coord (1,0), Coord (2,0)]
+jay    = [Coord (2,1), Coord (0,0), Coord (1,0), Coord (2,0)]
+square = [Coord (1,1), Coord (1,0), Coord (0,1), Coord (0,0)]
+zed    = [Coord (0,1), Coord (1,1), Coord (1,0), Coord (2,0)]
+ess    = [Coord (0,0), Coord (1,1), Coord (1,0), Coord (2,1)]
+tee    = [Coord (0,0), Coord (1,0), Coord (2,0), Coord (1,1)]
 
 aPiece :: Piece
-aPiece = Piece ell (6,10)
+aPiece = Piece ell (Coord (6,10))
 
 aBoard :: Board
-aBoard = foldr f Map.empty [(5,3), (5,6), (5,5)]
+aBoard = foldr f Map.empty [Coord (5,3), Coord (5,6), Coord (5,5)]
   where f c = Map.insert c Green
 
 aGame :: Game
@@ -33,7 +33,7 @@ aGame = Game aBoard aPiece
 
 getLineStr :: Board -> Int -> String
 getLineStr board y = "|" ++ fmap f [0..9] ++ "|"
-  where f x = case Map.lookup (x, y) board of
+  where f x = case Map.lookup (Coord (x, y)) board of
                 Just Green -> 'G'
                 Nothing -> ' '
 
@@ -44,10 +44,10 @@ getGameStr :: Game -> String
 getGameStr (Game b p) = getBoardStr $ merge b p
 
 translate :: Piece -> [Coord]
-translate (Piece s origin) = map (addCoords origin) s
+translate (Piece s origin) = fmap (addCoords origin) s
 
 addCoords :: Coord -> Coord -> Coord
-addCoords (x1, y1) (x2, y2) = (x1 + x2, y1 + y2)
+addCoords (Coord (x1, y1)) (Coord (x2, y2)) = Coord (x1 + x2, y1 + y2)
 
 merge :: Board -> Piece -> Board
 merge b p = foldr (\coord board -> Map.insert coord Green board) b worldPiece
@@ -62,21 +62,25 @@ move :: Coord -> Piece -> Piece
 move c (Piece s origin) = Piece s (addCoords origin c)
 
 down :: Piece -> Piece
-down = move (0, -1)
+down = move (Coord (0, -1))
 
 left :: Piece -> Piece
-left = move (-1, 0)
+left = move (Coord (-1, 0))
 
 right :: Piece -> Piece
-right = move (1, 0)
+right = move (Coord (1, 0))
 
-rotateLeft :: Piece -> Piece
-rotateLeft = rotateRight . rotateRight . rotateRight
+class Rotateable a where
+  rotateRight :: a -> a
+  rotateLeft :: a -> a
+  rotateLeft = rotateRight . rotateRight . rotateRight
 
-rotateRight :: Piece -> Piece
-rotateRight (Piece cs o) = Piece cs' o
-  where cs' = map f cs
-        f (x, y) = (y, -x)
+instance Rotateable Coord where
+  rotateRight (Coord (x, y)) = Coord (y, -x)
+
+instance Rotateable Piece where
+  rotateRight (Piece cs o) = Piece cs' o
+    where cs' = fmap rotateRight cs
 
 command :: String -> Piece -> Piece
 command "s" = down
