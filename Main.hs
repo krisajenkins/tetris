@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import Control.Concurrent.MVar
 import qualified Data.Map as Map
 
 data Color = Green
@@ -90,18 +89,11 @@ command _ = id
 step :: (Piece -> Piece) -> Game -> Game
 step f (Game b p) = Game b (f p)
 
-runStep :: Game -> IO Game
-runStep g = do
-  putStr $ getGameStr g
-  c <- getLine
-  return (step (command c) g)
+runLoop :: Game -> IO Game
+runLoop game = do
+  putStr $ getGameStr game
+  char <- getLine
+  runLoop $ step (command char) game
 
-run :: MVar Game -> IO b
-run state = do
-  _ <- modifyMVar_ state runStep
-  run state
-
-main :: IO b
-main = do
-  state <- newMVar (Game aBoard aPiece)
-  run state
+main :: IO Game
+main = runLoop (Game aBoard aPiece)
